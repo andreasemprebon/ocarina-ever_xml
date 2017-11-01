@@ -325,6 +325,7 @@ package body Ocarina.Backends.Ever_XML is
                           (Namespace
                                (Corresponding_Instance (F))));
                   end if;
+
                elsif Kind (F) = K_Subcomponent_Access_Instance then
                   Type_Kind := Get_String_Name ("access");
                   Name_F := Display_Name (Identifier
@@ -359,6 +360,32 @@ package body Ocarina.Backends.Ever_XML is
                         Get_Tag_String (Tag_Feature_Port_Data_Type_Namespace),
                         Get_Name_String (Namespace_F),
                         Depth + 3);
+
+               --  DATA PROPERTIES
+               --  Controllo tutte le properties associate ad un certo data
+               --  Siccome sembra non esserci un modo per capire quando questo
+               --  si puo' fare e quando no, il comando viene lanciato sempre
+               --  e se questo a sua volta lancia una eccezione viene catturata
+               --  e NON gestita grazie al comando null che non fa niente.
+               --  L'if con la presenza delle properties serve per lanciare
+               --  l'eccezione prima che vengano scritti i tag di apertura
+               --  delle properties: in questo modo il file XML generato è
+               --  sintatticamente corretto.
+               Open_Tag (FD_System,
+                         Get_Tag_String (Tag_Data_Info),
+                         Depth + 3);
+               begin
+                  if Present (Properties (Corresponding_Instance (F))) then
+                  Visit_Properties (Corresponding_Instance (F),
+                                    Depth + 3);
+                  end if;
+               exception
+                  when others =>
+                     null;
+               end;
+               Close_Tag (FD_System,
+                          Get_Tag_String (Tag_Data_Info),
+                          Depth + 3);
 
                --  FEATURE CATEGORY
                Put_Tag (FD_System,
@@ -433,7 +460,10 @@ package body Ocarina.Backends.Ever_XML is
             Visit_Properties (F, Depth + 2);
 
             --  INFORMAZIONI SULLA PORTA
-            if AIE.Get_Category_Of_Connection (F) = CT_Port_Connection then
+            if AIE.Get_Category_Of_Connection (F) = CT_Port_Connection or
+            else AIE.Get_Category_Of_Connection (F) = CT_Access_Subprogram or
+            else AIE.Get_Category_Of_Connection (F) = CT_Access_Data
+            then
 
                --  OPEN CONNECTION PORT INFO
                Open_Tag (FD_System,
@@ -762,6 +792,8 @@ package body Ocarina.Backends.Ever_XML is
             return "parent_dest";
          when Tag_Connection_Port_Info_Parent_Dest_Name =>
             return "parent_dest_name";
+         when Tag_Data_Info =>
+            return "data_info";
          when others =>
             return "unknown";
       end case;
